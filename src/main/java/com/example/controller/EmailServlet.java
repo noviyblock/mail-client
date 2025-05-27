@@ -14,13 +14,12 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
 
+@WebServlet("/email/*")
 public class EmailServlet extends HttpServlet {
     private final EmailService emailService = new EmailServiceImpl();
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
         if (session == null || session.getAttribute("user") == null) {
             resp.sendRedirect(req.getContextPath() + "/auth/login");
@@ -29,37 +28,70 @@ public class EmailServlet extends HttpServlet {
 
         User user = (User) session.getAttribute("user");
         String action = req.getPathInfo();
-        if (action == null) action = "";
 
-        try {
-            switch (action) {
-                case "/inbox":
-                    showInbox(req, resp, user);
-                    break;
-                case "/sent":
-                    showSentEmails(req, resp, user);
-                    break;
-                case "/compose":
-                    showComposeForm(req, resp);
-                    break;
-                case "/view":
-                    showEmail(req, resp, user);
-                    break;
-                case "/delete":
-                    deleteEmail(req, resp, user);
-                    break;
-                default:
-                    resp.sendError(HttpServletResponse.SC_NOT_FOUND);
-            }
-        } catch (Exception e) {
-            handleError(req, resp, e);
+        if (action == null || action.equals("/")) {
+            resp.sendRedirect(req.getContextPath() + "/email/inbox");
+            return;
+        }
+
+        switch (action) {
+            case "/inbox":
+                List<Email> inboxEmails = emailService.getInboxEmails(user.getEmail());
+                req.setAttribute("emails", inboxEmails);
+                req.setAttribute("folder", "inbox");
+                req.getRequestDispatcher("/WEB-INF/views/email/inbox.jsp").forward(req, resp);
+                break;
+            case "/sent":
+                List<Email> sentEmails = emailService.getSentEmails(user.getEmail());
+                req.setAttribute("emails", sentEmails);
+                req.setAttribute("folder", "sent");
+                req.getRequestDispatcher("/WEB-INF/views/email/inbox.jsp").forward(req, resp);
+                break;
+            case "/compose":
+                req.getRequestDispatcher("/WEB-INF/views/email/compose.jsp").forward(req, resp);
+                break;
+            case "/view":
+                String emailIdParam = req.getParameter("id");
+                if (emailIdParam == null || emailIdParam.isEmpty()) {
+                    resp.sendRedirect(req.getContextPath() + "/email/inbox");
+                    return;
+                }
+
+                try {
+                    int emailId = Integer.parseInt(emailIdParam);
+                    emailService.getEmailById(emailId).ifPresentOrElse(
+                            email -> {
+                                try {
+                                    req.setAttribute("email", email);
+                                    req.getRequestDispatcher("/WEB-INF/views/email/view.jsp").forward(req, resp);
+                                } catch (ServletException | IOException e) {
+                                    e.printStackTrace();
+                                    try {
+                                        resp.sendRedirect(req.getContextPath() + "/email/inbox");
+                                    } catch (IOException ex) {
+                                        ex.printStackTrace();
+                                    }
+                                }
+                            },
+                            () -> {
+                                try {
+                                    resp.sendRedirect(req.getContextPath() + "/email/inbox");
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                    );
+                } catch (NumberFormatException e) {
+                    resp.sendRedirect(req.getContextPath() + "/email/inbox");
+                }
+                break;
+            default:
+                resp.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
         if (session == null || session.getAttribute("user") == null) {
             resp.sendRedirect(req.getContextPath() + "/auth/login");
@@ -68,129 +100,68 @@ public class EmailServlet extends HttpServlet {
 
         User user = (User) session.getAttribute("user");
         String action = req.getPathInfo();
-        if (action == null) action = "";
 
-        try {
-            switch (action) {
-                case "/send":
-                    sendEmail(req, resp, user);
-                    break;
-                default:
-                    resp.sendError(HttpServletResponse.SC_NOT_FOUND);
-            }
-        } catch (Exception e) {
-            handleError(req, resp, e);
-        }
-    }
-
-    private void showInbox(HttpServletRequest req, HttpServletResponse resp, User user)
-            throws ServletException, IOException {
-
-        List<Email> emails = emailService.getInbox(user.getEmail());
-        req.setAttribute("emails", emails);
-        req.getRequestDispatcher("/WEB-INF/views/email/inbox.jsp").forward(req, resp);
-    }
-
-    private void showSentEmails(HttpServletRequest req, HttpServletResponse resp, User user)
-            throws ServletException, IOException {
-
-        List<Email> emails = emailService.getSentEmails(user.getEmail());
-        req.setAttribute("emails", emails);
-        req.getRequestDispatcher("/WEB-INF/views/email/sent.jsp").forward(req, resp);
-    }
-
-    private void showComposeForm(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-
-        req.getRequestDispatcher("/WEB-INF/views/email/compose.jsp").forward(req, resp);
-    }
-
-    private void showEmail(HttpServletRequest req, HttpServletResponse resp, User user)
-            throws ServletException, IOException {
-
-        String idParam = req.getParameter("id");
-        if (idParam == null || idParam.isEmpty()) {
-            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing email ID");
-            return;
-        }
-
-        try {
-            int id = Integer.parseInt(idParam);
-            Email email = emailService.findById(id);
-
-            if (email == null) {
-                resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Email not found");
-                return;
-            }
-
-            if (!email.getRecipient().equals(user.getEmail()) &&
-                    !email.getSender().equals(user.getEmail())) {
-                resp.sendError(HttpServletResponse.SC_FORBIDDEN, "You are not authorized to view this email");
-                return;
-            }
-
-            req.setAttribute("email", email);
-            req.getRequestDispatcher("/WEB-INF/views/email/view.jsp").forward(req, resp);
-        } catch (NumberFormatException e) {
-            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid email ID");
-        }
-    }
-
-    private void deleteEmail(HttpServletRequest req, HttpServletResponse resp, User user)
-            throws IOException, ServletException {
-
-        String idParam = req.getParameter("id");
-        if (idParam == null || idParam.isEmpty()) {
-            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing email ID");
-            return;
-        }
-
-        try {
-            int id = Integer.parseInt(idParam);
-            Email email = emailService.findById(id);
-
-            if (email == null) {
-                resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Email not found");
-                return;
-            }
-
-            if (!email.getRecipient().equals(user.getEmail())) {
-                resp.sendError(HttpServletResponse.SC_FORBIDDEN, "You can only delete emails from your inbox");
-                return;
-            }
-
-            emailService.deleteEmail(id);
+        if (action == null) {
             resp.sendRedirect(req.getContextPath() + "/email/inbox");
-        } catch (NumberFormatException e) {
-            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid email ID");
+            return;
+        }
+
+        switch (action) {
+            case "/send":
+                handleSendEmail(req, resp, user);
+                break;
+            case "/delete":
+                handleDeleteEmail(req, resp);
+                break;
+            default:
+                resp.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
-    private void sendEmail(HttpServletRequest req, HttpServletResponse resp, User user)
-            throws ServletException, IOException {
-
+    private void handleSendEmail(HttpServletRequest req, HttpServletResponse resp, User sender) throws IOException {
         String recipient = req.getParameter("recipient");
         String subject = req.getParameter("subject");
         String content = req.getParameter("content");
 
-        Email email = new Email(user.getEmail(), recipient, subject, content);
+        Email email = new Email();
+        email.setSender(sender.getEmail());
+        email.setRecipient(recipient);
+        email.setSubject(subject);
+        email.setContent(content);
 
-        try {
-            emailService.sendEmail(email);
-            req.setAttribute("success", "Email sent successfully");
-            showComposeForm(req, resp);
-        } catch (IllegalArgumentException e) {
-            req.setAttribute("error", e.getMessage());
-            req.setAttribute("email", email);
-            showComposeForm(req, resp);
+        if (emailService.sendEmail(email)) {
+            req.getSession().setAttribute("message", "Email sent successfully");
+        } else {
+            req.getSession().setAttribute("error", "Failed to send email");
         }
+
+        resp.sendRedirect(req.getContextPath() + "/email/sent");
     }
 
-    private void handleError(HttpServletRequest req, HttpServletResponse resp, Exception e)
-            throws ServletException, IOException {
+    private void handleDeleteEmail(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String emailIdParam = req.getParameter("id");
+        String folder = req.getParameter("folder");
 
-        e.printStackTrace();
-        req.setAttribute("error", "An unexpected error occurred: " + e.getMessage());
-        req.getRequestDispatcher("/WEB-INF/views/error/error.jsp").forward(req, resp);
+        if (emailIdParam == null || emailIdParam.isEmpty()) {
+            resp.sendRedirect(req.getContextPath() + "/email/inbox");
+            return;
+        }
+
+        try {
+            int emailId = Integer.parseInt(emailIdParam);
+            if (emailService.deleteEmail(emailId)) {
+                req.getSession().setAttribute("message", "Email deleted successfully");
+            } else {
+                req.getSession().setAttribute("error", "Failed to delete email");
+            }
+        } catch (NumberFormatException e) {
+            req.getSession().setAttribute("error", "Invalid email ID");
+        }
+
+        if ("sent".equals(folder)) {
+            resp.sendRedirect(req.getContextPath() + "/email/sent");
+        } else {
+            resp.sendRedirect(req.getContextPath() + "/email/inbox");
+        }
     }
 }

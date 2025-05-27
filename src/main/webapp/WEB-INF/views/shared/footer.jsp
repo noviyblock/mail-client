@@ -1,8 +1,5 @@
-</main>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
 <footer>
-    <div class="container">
-        <p>&copy; 2023 Mail Client. All rights reserved.</p>
-    </div>
+    <p>&copy; 2025 Mail Client. All rights reserved.</p>
 </footer>
-</body>
-</html>

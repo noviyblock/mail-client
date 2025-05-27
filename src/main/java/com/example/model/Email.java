@@ -14,13 +14,14 @@ public class Email {
 
     public Email() {}
 
-    public Email(String sender, String recipient, String subject, String content) {
+    public Email(int id, String sender, String recipient, String subject, String content, Date sentDate, boolean isRead) {
+        this.id = id;
         this.sender = sender;
         this.recipient = recipient;
         this.subject = subject;
         this.content = content;
-        this.sentDate = new Date();
-        this.isRead = false;
+        this.sentDate = sentDate;
+        this.isRead = isRead;
     }
 
     // Getters and Setters
@@ -85,12 +86,9 @@ public class Email {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Email email = (Email) o;
-        return id == email.id &&
-                isRead == email.isRead &&
-                Objects.equals(sender, email.sender) &&
-                Objects.equals(recipient, email.recipient) &&
-                Objects.equals(subject, email.subject) &&
-                Objects.equals(content, email.content) &&
+        return id == email.id && isRead == email.isRead &&
+                Objects.equals(sender, email.sender) && Objects.equals(recipient, email.recipient) &&
+                Objects.equals(subject, email.subject) && Objects.equals(content, email.content) &&
                 Objects.equals(sentDate, email.sentDate);
     }
 

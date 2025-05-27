@@ -1,13 +1,12 @@
 package com.example.dao;
 
 import com.example.model.User;
+import java.util.Optional;
 
 public interface UserDao {
-    User findById(int id);
-    User findByUsername(String username);
-    User findByEmail(String email);
-    void save(User user);
-    void update(User user);
-    void delete(int id);
-    boolean validateUser(String username, String password);
+    Optional<User> findUserByUsername(String username);
+    Optional<User> findUserByEmail(String email);
+    boolean saveUser(User user);
+    boolean updateUser(User user);
+    boolean deleteUser(int userId);
 }

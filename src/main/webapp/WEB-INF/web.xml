@@ -2,61 +2,40 @@
 <web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
-         http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+                             http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
          version="4.0">
 
     <display-name>Mail Client</display-name>
 
+    <!-- Настройка кодировки -->
+    <filter>
+        <filter-name>encodingFilter</filter-name>
+        <filter-class>com.example.filter.CharacterEncodingFilter</filter-class>
+        <init-param>
+            <param-name>encoding</param-name>
+            <param-value>UTF-8</param-value>
+        </init-param>
+        <init-param>
+            <param-name>forceEncoding</param-name>
+            <param-value>true</param-value>
+        </init-param>
+    </filter>
+
+    <filter-mapping>
+        <filter-name>encodingFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <!-- Настройка приветственной страницы -->
     <welcome-file-list>
         <welcome-file>index.jsp</welcome-file>
     </welcome-file-list>
 
-    <!-- Servlets configuration -->
-    <servlet>
-        <servlet-name>AuthServlet</servlet-name>
-        <servlet-class>com.example.controller.AuthServlet</servlet-class>
-    </servlet>
-    <servlet-mapping>
-        <servlet-name>AuthServlet</servlet-name>
-        <url-pattern>/auth/*</url-pattern>
-    </servlet-mapping>
-
-    <servlet>
-        <servlet-name>EmailServlet</servlet-name>
-        <servlet-class>com.example.controller.EmailServlet</servlet-class>
-    </servlet>
-    <servlet-mapping>
-        <servlet-name>EmailServlet</servlet-name>
-        <url-pattern>/email/*</url-pattern>
-    </servlet-mapping>
-
-    <servlet>
-        <servlet-name>UserServlet</servlet-name>
-        <servlet-class>com.example.controller.UserServlet</servlet-class>
-    </servlet>
-    <servlet-mapping>
-        <servlet-name>UserServlet</servlet-name>
-        <url-pattern>/user/*</url-pattern>
-    </servlet-mapping>
-
-    <!-- Error pages -->
-    <error-page>
-        <error-code>404</error-code>
-        <location>/WEB-INF/views/error/error.jsp</location>
-    </error-page>
-
-    <error-page>
-        <error-code>500</error-code>
-        <location>/WEB-INF/views/error/error.jsp</location>
-    </error-page>
-
-    <!-- JSP configuration -->
+    <!-- Настройка JSP -->
     <jsp-config>
         <jsp-property-group>
             <url-pattern>*.jsp</url-pattern>
-            <el-ignored>false</el-ignored>
             <page-encoding>UTF-8</page-encoding>
-            <scripting-invalid>false</scripting-invalid>
             <trim-directive-whitespaces>true</trim-directive-whitespaces>
         </jsp-property-group>
     </jsp-config>

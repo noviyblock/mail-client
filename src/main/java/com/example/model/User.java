@@ -10,7 +10,8 @@ public class User {
 
     public User() {}
 
-    public User(String username, String password, String email) {
+    public User(int id, String username, String password, String email) {
+        this.id = id;
         this.username = username;
         this.password = password;
         this.email = email;
@@ -54,14 +55,13 @@ public class User {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         User user = (User) o;
-        return id == user.id &&
-                Objects.equals(username, user.username) &&
-                Objects.equals(email, user.email);
+        return id == user.id && Objects.equals(username, user.username) &&
+                Objects.equals(password, user.password) && Objects.equals(email, user.email);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, username, email);
+        return Objects.hash(id, username, password, email);
     }
 
     @Override

@@ -6,38 +6,49 @@ import com.example.util.DatabaseUtil;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class EmailDaoImpl implements EmailDao {
     @Override
-    public Email findById(int id) {
-        String sql = "SELECT * FROM emails WHERE id = ?";
+    public boolean saveEmail(Email email) {
+        String sql = "INSERT INTO emails(sender, recipient, subject, content) VALUES(?, ?, ?, ?)";
         try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1, id);
-            ResultSet rs = stmt.executeQuery();
+            pstmt.setString(1, email.getSender());
+            pstmt.setString(2, email.getRecipient());
+            pstmt.setString(3, email.getSubject());
+            pstmt.setString(4, email.getContent());
 
-            if (rs.next()) {
-                return extractEmailFromResultSet(rs);
-            }
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         }
-        return null;
     }
 
     @Override
-    public List<Email> findByRecipient(String recipient) {
+    public List<Email> findInboxEmails(String recipient) {
         List<Email> emails = new ArrayList<>();
         String sql = "SELECT * FROM emails WHERE recipient = ? ORDER BY sent_date DESC";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, recipient);
-            ResultSet rs = stmt.executeQuery();
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, recipient);
+            ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
-                emails.add(extractEmailFromResultSet(rs));
+                Email email = new Email();
+                email.setId(rs.getInt("id"));
+                email.setSender(rs.getString("sender"));
+                email.setRecipient(rs.getString("recipient"));
+                email.setSubject(rs.getString("subject"));
+                email.setContent(rs.getString("content"));
+                email.setSentDate(rs.getTimestamp("sent_date"));
+                email.setRead(rs.getBoolean("is_read"));
+                emails.add(email);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -46,17 +57,26 @@ public class EmailDaoImpl implements EmailDao {
     }
 
     @Override
-    public List<Email> findBySender(String sender) {
+    public List<Email> findSentEmails(String sender) {
         List<Email> emails = new ArrayList<>();
         String sql = "SELECT * FROM emails WHERE sender = ? ORDER BY sent_date DESC";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, sender);
-            ResultSet rs = stmt.executeQuery();
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, sender);
+            ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
-                emails.add(extractEmailFromResultSet(rs));
+                Email email = new Email();
+                email.setId(rs.getInt("id"));
+                email.setSender(rs.getString("sender"));
+                email.setRecipient(rs.getString("recipient"));
+                email.setSubject(rs.getString("subject"));
+                email.setContent(rs.getString("content"));
+                email.setSentDate(rs.getTimestamp("sent_date"));
+                email.setRead(rs.getBoolean("is_read"));
+                emails.add(email);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -65,85 +85,58 @@ public class EmailDaoImpl implements EmailDao {
     }
 
     @Override
-    public void save(Email email) {
-        String sql = "INSERT INTO emails (sender, recipient, subject, content, sent_date, is_read) " +
-                "VALUES (?, ?, ?, ?, ?, ?)";
+    public Optional<Email> findEmailById(int emailId) {
+        String sql = "SELECT * FROM emails WHERE id = ?";
         try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, email.getSender());
-            stmt.setString(2, email.getRecipient());
-            stmt.setString(3, email.getSubject());
-            stmt.setString(4, email.getContent());
-            stmt.setTimestamp(5, new Timestamp(email.getSentDate().getTime()));
-            stmt.setBoolean(6, email.isRead());
-            stmt.executeUpdate();
+            pstmt.setInt(1, emailId);
+            ResultSet rs = pstmt.executeQuery();
 
-            // Get the auto-generated id
-            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    email.setId(generatedKeys.getInt(1));
-                }
+            if (rs.next()) {
+                Email email = new Email();
+                email.setId(rs.getInt("id"));
+                email.setSender(rs.getString("sender"));
+                email.setRecipient(rs.getString("recipient"));
+                email.setSubject(rs.getString("subject"));
+                email.setContent(rs.getString("content"));
+                email.setSentDate(rs.getTimestamp("sent_date"));
+                email.setRead(rs.getBoolean("is_read"));
+                return Optional.of(email);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        return Optional.empty();
     }
 
     @Override
-    public void update(Email email) {
-        String sql = "UPDATE emails SET sender = ?, recipient = ?, subject = ?, content = ?, " +
-                "is_read = ? WHERE id = ?";
+    public boolean markAsRead(int emailId) {
+        String sql = "UPDATE emails SET is_read = TRUE WHERE id = ?";
         try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, email.getSender());
-            stmt.setString(2, email.getRecipient());
-            stmt.setString(3, email.getSubject());
-            stmt.setString(4, email.getContent());
-            stmt.setBoolean(5, email.isRead());
-            stmt.setInt(6, email.getId());
-            stmt.executeUpdate();
+            pstmt.setInt(1, emailId);
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         }
     }
 
     @Override
-    public void delete(int id) {
+    public boolean deleteEmail(int emailId) {
         String sql = "DELETE FROM emails WHERE id = ?";
         try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
+            pstmt.setInt(1, emailId);
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         }
-    }
-
-    @Override
-    public void markAsRead(int id) {
-        String sql = "UPDATE emails SET is_read = true WHERE id = ?";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private Email extractEmailFromResultSet(ResultSet rs) throws SQLException {
-        Email email = new Email();
-        email.setId(rs.getInt("id"));
-        email.setSender(rs.getString("sender"));
-        email.setRecipient(rs.getString("recipient"));
-        email.setSubject(rs.getString("subject"));
-        email.setContent(rs.getString("content"));
-        email.setSentDate(new Date(rs.getTimestamp("sent_date").getTime()));
-        email.setRead(rs.getBoolean("is_read"));
-        return email;
     }
 }

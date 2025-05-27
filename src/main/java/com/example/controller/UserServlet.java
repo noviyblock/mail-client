@@ -12,13 +12,12 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 
+@WebServlet("/user/*")
 public class UserServlet extends HttpServlet {
     private final UserService userService = new UserServiceImpl();
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
         if (session == null || session.getAttribute("user") == null) {
             resp.sendRedirect(req.getContextPath() + "/auth/login");
@@ -26,28 +25,23 @@ public class UserServlet extends HttpServlet {
         }
 
         String action = req.getPathInfo();
-        if (action == null) action = "";
 
-        try {
-            switch (action) {
-                case "/profile":
-                    showProfile(req, resp);
-                    break;
-                case "/edit":
-                    showEditForm(req, resp);
-                    break;
-                default:
-                    resp.sendError(HttpServletResponse.SC_NOT_FOUND);
-            }
-        } catch (Exception e) {
-            handleError(req, resp, e);
+        if (action == null || action.equals("/")) {
+            resp.sendRedirect(req.getContextPath() + "/email/inbox");
+            return;
+        }
+
+        switch (action) {
+            case "/profile":
+                req.getRequestDispatcher("/WEB-INF/views/user/profile.jsp").forward(req, resp);
+                break;
+            default:
+                resp.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
         if (session == null || session.getAttribute("user") == null) {
             resp.sendRedirect(req.getContextPath() + "/auth/login");
@@ -56,88 +50,52 @@ public class UserServlet extends HttpServlet {
 
         User currentUser = (User) session.getAttribute("user");
         String action = req.getPathInfo();
-        if (action == null) action = "";
 
-        try {
-            switch (action) {
-                case "/update":
-                    updateProfile(req, resp, currentUser);
-                    break;
-                case "/delete":
-                    deleteAccount(req, resp, currentUser);
-                    break;
-                default:
-                    resp.sendError(HttpServletResponse.SC_NOT_FOUND);
-            }
-        } catch (Exception e) {
-            handleError(req, resp, e);
+        if (action == null) {
+            resp.sendRedirect(req.getContextPath() + "/email/inbox");
+            return;
+        }
+
+        switch (action) {
+            case "/update":
+                handleUpdateProfile(req, resp, currentUser);
+                break;
+            case "/delete":
+                handleDeleteAccount(req, resp, currentUser);
+                break;
+            default:
+                resp.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
-    private void showProfile(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-
-        User user = (User) req.getSession().getAttribute("user");
-        req.setAttribute("user", user);
-        req.getRequestDispatcher("/WEB-INF/views/user/profile.jsp").forward(req, resp);
-    }
-
-    private void showEditForm(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-
-        User user = (User) req.getSession().getAttribute("user");
-        req.setAttribute("user", user);
-        req.getRequestDispatcher("/WEB-INF/views/user/edit.jsp").forward(req, resp);
-    }
-
-    private void updateProfile(HttpServletRequest req, HttpServletResponse resp, User currentUser)
-            throws ServletException, IOException {
-
+    private void handleUpdateProfile(HttpServletRequest req, HttpServletResponse resp, User currentUser) throws IOException, ServletException {
         String username = req.getParameter("username");
         String email = req.getParameter("email");
         String password = req.getParameter("password");
 
-        User updatedUser = new User(username, password, email);
-        updatedUser.setId(currentUser.getId());
+        currentUser.setUsername(username);
+        currentUser.setEmail(email);
+        if (password != null && !password.isEmpty()) {
+            currentUser.setPassword(password);
+        }
 
-        try {
-            // Check if username or email is changed and already taken
-            if (!username.equals(currentUser.getUsername()) &&
-                    userService.isUsernameTaken(username)) {
-                throw new IllegalArgumentException("Username already taken");
-            }
-
-            if (!email.equals(currentUser.getEmail()) &&
-                    userService.isEmailTaken(email)) {
-                throw new IllegalArgumentException("Email already taken");
-            }
-
-            userService.updateUser(updatedUser);
-
-            // Update session
-            req.getSession().setAttribute("user", updatedUser);
-            req.setAttribute("success", "Profile updated successfully");
-            showProfile(req, resp);
-        } catch (IllegalArgumentException e) {
-            req.setAttribute("error", e.getMessage());
-            req.setAttribute("user", updatedUser);
-            showEditForm(req, resp);
+        if (userService.updateUserProfile(currentUser)) {
+            req.getSession().setAttribute("user", currentUser);
+            req.getSession().setAttribute("message", "Profile updated successfully");
+            resp.sendRedirect(req.getContextPath() + "/user/profile");
+        } else {
+            req.setAttribute("error", "Failed to update profile");
+            req.getRequestDispatcher("/WEB-INF/views/user/profile.jsp").forward(req, resp);
         }
     }
 
-    private void deleteAccount(HttpServletRequest req, HttpServletResponse resp, User user)
-            throws IOException {
-
-        userService.deleteUser(user.getId());
-        req.getSession().invalidate();
-        resp.sendRedirect(req.getContextPath() + "/auth/register");
-    }
-
-    private void handleError(HttpServletRequest req, HttpServletResponse resp, Exception e)
-            throws ServletException, IOException {
-
-        e.printStackTrace();
-        req.setAttribute("error", "An unexpected error occurred: " + e.getMessage());
-        req.getRequestDispatcher("/WEB-INF/views/error/error.jsp").forward(req, resp);
+    private void handleDeleteAccount(HttpServletRequest req, HttpServletResponse resp, User currentUser) throws IOException {
+        if (userService.deleteUser(currentUser.getId())) {
+            req.getSession().invalidate();
+            resp.sendRedirect(req.getContextPath() + "/auth/register");
+        } else {
+            req.getSession().setAttribute("error", "Failed to delete account");
+            resp.sendRedirect(req.getContextPath() + "/user/profile");
+        }
     }
 }
