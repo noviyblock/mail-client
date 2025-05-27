@@ -4,7 +4,6 @@
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
 <div class="container">
     <h2>${folder eq 'inbox' ? 'Inbox' : 'Sent'}</h2>
-    <a href="${pageContext.request.contextPath}/email/compose" class="btn">Compose</a>
 
     <table class="email-table">
         <thead>
