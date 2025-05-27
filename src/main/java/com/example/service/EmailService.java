@@ -2,12 +2,13 @@ package com.example.service;
 
 import com.example.model.Email;
 import java.util.List;
+import java.util.Optional;
 
 public interface EmailService {
-    Email findById(int id);
-    List<Email> getInbox(String recipient);
+    boolean sendEmail(Email email);
+    List<Email> getInboxEmails(String recipient);
     List<Email> getSentEmails(String sender);
-    void sendEmail(Email email);
-    void deleteEmail(int id);
-    void markAsRead(int id);
+    Optional<Email> getEmailById(int emailId);
+    boolean markEmailAsRead(int emailId);
+    boolean deleteEmail(int emailId);
 }

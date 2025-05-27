@@ -1,29 +1,26 @@
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ include file="/WEB-INF/views/shared/header.jsp" %>
-<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
-<c:set var="pageTitle" value="${email.subject}" />
-
-<div class="email-view">
-    <div class="email-header">
-        <h2><c:out value="${email.subject}"/></h2>
-
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
+<div class="container">
+    <div class="email-view">
+        <h2>${email.subject}</h2>
         <div class="email-meta">
-            <div><strong>From:</strong> <c:out value="${email.sender}"/></div>
-            <div><strong>To:</strong> <c:out value="${email.recipient}"/></div>
-            <div><strong>Date:</strong> <fmt:formatDate value="${email.sentDate}" pattern="dd MMM yyyy HH:mm"/></div>
+            <p><strong>From:</strong> ${email.sender}</p>
+            <p><strong>To:</strong> ${email.recipient}</p>
+            <p><strong>Date:</strong> ${email.sentDate}</p>
+        </div>
+        <div class="email-content">
+            ${email.content}
+        </div>
+        <div class="email-actions">
+            <a href="${pageContext.request.contextPath}/email/compose?reply=${email.id}" class="btn">Reply</a>
+            <form action="${pageContext.request.contextPath}/email/delete" method="post" style="display: inline;">
+                <input type="hidden" name="id" value="${email.id}">
+                <button type="submit" class="btn" style="background-color: #e74c3c;">Delete</button>
+            </form>
+            <a href="${pageContext.request.contextPath}/email/inbox" class="btn">Back to Inbox</a>
         </div>
     </div>
-
-    <div class="email-content">
-        <pre><c:out value="${email.content}"/></pre>
-    </div>
-
-    <div class="email-actions">
-        <a href="${pageContext.request.contextPath}/email/compose?replyTo=${email.id}" class="btn">Reply</a>
-        <a href="${pageContext.request.contextPath}/email/delete?id=${email.id}"
-           class="btn btn-delete"
-           onclick="return confirm('Are you sure you want to delete this email?')">Delete</a>
-        <a href="${pageContext.request.contextPath}/email/inbox" class="btn">Back to Inbox</a>
-    </div>
 </div>
-
 <%@ include file="/WEB-INF/views/shared/footer.jsp" %>
